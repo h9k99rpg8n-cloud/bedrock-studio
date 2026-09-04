@@ -2,23 +2,34 @@
 
 A modern web-based editor for creating Minecraft Bedrock Add-Ons without needing to write everything by hand.
 
-Bedrock Studio is designed to make Add-On creation approachable for beginners while keeping advanced tools available for experienced creators. The editor will generate and manage pack structure, manifests, identifiers, components, textures, models, validation, JSON and export workflows.
+Bedrock Studio is designed to make Add-On creation approachable for beginners while keeping advanced tools available for experienced creators. The editor manages pack structure, manifests, identifiers, components, textures, validation and generated JSON while keeping the underlying Bedrock data visible.
 
 ## Current status
 
-🚧 **Experimental 0.1 development**
+🧪 **Experimental 0.2**
 
-The first working shell is already in the repository. It includes:
+The current web build includes:
 
-- Responsive web interface for desktop, tablet and mobile.
-- Local project library.
-- New-project creation flow.
-- Namespace handling.
-- Resource Pack / Behavior Pack selection.
-- Project metadata and version display.
-- Foundation for the upcoming block editor.
+- Responsive interface for desktop, tablet and mobile.
+- Local project library with automatic migration from Experimental 0.1 projects.
+- Resource Pack / Behavior Pack project setup.
+- Persistent project UUIDs and generated manifests.
+- Visual custom block editor with live validation and JSON preview.
+- Visual custom item editor.
+- Stable built-in item component toggles for enchanted glint, hand-equipped rendering and fire resistance.
+- Item stack-size and Creative category controls.
+- PNG texture library for item and block textures.
+- Pixel-art texture previews and texture metadata.
+- Automatic `item_texture.json` generation.
+- Automatic `terrain_texture.json` generation.
+- Copyable generated JSON.
+- Runtime compatibility fallback and visible startup diagnostics instead of a silent white screen.
 
-Projects currently persist in the browser using local storage while the project format is being designed.
+Small texture PNGs are stored locally in the browser during this experimental phase. Experimental 0.2 currently limits each uploaded texture to 512 KB to avoid exhausting browser local storage.
+
+## Minecraft target
+
+Bedrock Studio currently targets **Minecraft Bedrock 1.26.40** stable features by default. Experimental/Preview-only functionality will be kept separate instead of silently mixing it into normal projects.
 
 ## Project goals
 
@@ -35,15 +46,15 @@ Projects currently persist in the browser using local storage while the project 
 
 ## Experimental roadmap
 
-| Version | Focus |
-| --- | --- |
-| **Experimental 0.1** | Project system, manifests and block creation |
-| **Experimental 0.2** | Items, textures and component editor |
-| **Experimental 0.3** | Geometry import and improved JSON tools |
-| **Experimental 0.4** | Entity editor |
-| **Experimental 0.5** | Recipes, loot tables, spawn rules and stronger validation |
-| **Experimental 0.6** | Packaging/export, polish and release preparation |
-| **1.0** | First stable release |
+| Version | Focus | Status |
+| --- | --- | --- |
+| **Experimental 0.1** | Project system, manifests and block creation | ✅ Complete foundation |
+| **Experimental 0.2** | Items, textures and component editor | 🧪 Current |
+| **Experimental 0.3** | Geometry import and improved JSON tools | Next |
+| **Experimental 0.4** | Entity editor | Planned |
+| **Experimental 0.5** | Recipes, loot tables, spawn rules and stronger validation | Planned |
+| **Experimental 0.6** | Packaging/export, polish and release preparation | Planned |
+| **1.0** | First stable release | Planned |
 
 ## Design principle
 
