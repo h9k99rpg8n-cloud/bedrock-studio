@@ -1,4 +1,6 @@
 export type PackMode = 'resource' | 'behavior';
+export type TextureKind = 'item' | 'block';
+export type ItemCategory = 'construction' | 'nature' | 'equipment' | 'items' | 'none';
 
 export type PackIds = {
   behaviorHeader: string;
@@ -24,6 +26,32 @@ export type BlockDefinition = {
   updatedAt: string;
 };
 
+export type ItemDefinition = {
+  id: string;
+  name: string;
+  identifier: string;
+  texture: string;
+  category: ItemCategory;
+  maxStackSize: number;
+  glint: boolean;
+  handEquipped: boolean;
+  fireResistant: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type TextureDefinition = {
+  id: string;
+  key: string;
+  kind: TextureKind;
+  fileName: string;
+  width: number;
+  height: number;
+  size: number;
+  dataUrl: string;
+  createdAt: string;
+};
+
 export type Project = {
   id: string;
   name: string;
@@ -34,19 +62,35 @@ export type Project = {
   packs: PackMode[];
   packIds: PackIds;
   blocks: BlockDefinition[];
+  items: ItemDefinition[];
+  textures: TextureDefinition[];
   createdAt: string;
   updatedAt: string;
 };
 
 export const CURRENT_BEDROCK_VERSION: [number, number, number] = [1, 26, 40];
 export const BLOCK_FORMAT_VERSION = '1.26.40';
+export const ITEM_FORMAT_VERSION = '1.26.40';
+
+export function createId() {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  if (globalThis.crypto?.getRandomValues) {
+    const bytes = new Uint8Array(16);
+    globalThis.crypto.getRandomValues(bytes);
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    const hex = Array.from(bytes, (value) => value.toString(16).padStart(2, '0')).join('');
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+  }
+  return `bs-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+}
 
 export function makePackIds(): PackIds {
   return {
-    behaviorHeader: crypto.randomUUID(),
-    behaviorModule: crypto.randomUUID(),
-    resourceHeader: crypto.randomUUID(),
-    resourceModule: crypto.randomUUID(),
+    behaviorHeader: createId(),
+    behaviorModule: createId(),
+    resourceHeader: createId(),
+    resourceModule: createId(),
   };
 }
 
@@ -63,6 +107,7 @@ export function normalizePathName(value: string) {
   return value
     .trim()
     .toLowerCase()
+    .replace(/\.[^.]+$/, '')
     .replace(/[^a-z0-9_.-]/g, '_')
     .replace(/_+/g, '_')
     .replace(/^_+|_+$/g, '');
@@ -80,6 +125,8 @@ export function migrateProject(input: Partial<Project> & { id: string; name: str
     packs: input.packs?.length ? input.packs : ['resource', 'behavior'],
     packIds: input.packIds ?? makePackIds(),
     blocks: input.blocks ?? [],
+    items: input.items ?? [],
+    textures: input.textures ?? [],
     createdAt: input.createdAt ?? now,
     updatedAt: input.updatedAt ?? now,
   };
@@ -88,7 +135,7 @@ export function migrateProject(input: Partial<Project> & { id: string; name: str
 export function createBlockDraft(namespace: string): BlockDefinition {
   const now = new Date().toISOString();
   return {
-    id: crypto.randomUUID(),
+    id: createId(),
     name: 'New Block',
     identifier: `${namespace}:new_block`,
     texture: 'new_block',
@@ -100,6 +147,23 @@ export function createBlockDraft(namespace: string): BlockDefinition {
     mapColor: '#808080',
     collision: true,
     selection: true,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+export function createItemDraft(namespace: string, texture = ''): ItemDefinition {
+  const now = new Date().toISOString();
+  return {
+    id: createId(),
+    name: 'New Item',
+    identifier: `${namespace}:new_item`,
+    texture,
+    category: 'items',
+    maxStackSize: 64,
+    glint: false,
+    handEquipped: false,
+    fireResistant: false,
     createdAt: now,
     updatedAt: now,
   };
@@ -125,6 +189,24 @@ export function validateBlock(block: BlockDefinition, project: Project): string[
   if (!/^#[0-9a-fA-F]{6}$/.test(block.mapColor)) errors.push('Map color must be a 6-digit hex color.');
   if (block.geometry && !block.geometry.startsWith('geometry.')) errors.push('Geometry identifiers should begin with geometry.');
 
+  return errors;
+}
+
+export function validateItem(item: ItemDefinition, project: Project): string[] {
+  const errors: string[] = [];
+  const identifierPattern = /^[a-z0-9_]+:[a-z0-9_.-]+$/;
+
+  if (!item.name.trim()) errors.push('Display name is required.');
+  if (!identifierPattern.test(item.identifier)) {
+    errors.push('Identifier must look like namespace:item_name using lowercase letters, numbers, _, . or -.');
+  }
+  if (!item.identifier.startsWith(`${project.namespace}:`)) {
+    errors.push(`Identifier should use this project's namespace: ${project.namespace}:`);
+  }
+  if (!item.texture.trim()) errors.push('Choose or enter an item texture key.');
+  if (!Number.isInteger(item.maxStackSize) || item.maxStackSize < 1 || item.maxStackSize > 64) {
+    errors.push('Max stack size must be a whole number from 1 to 64.');
+  }
   return errors;
 }
 
@@ -217,6 +299,67 @@ export function generateBlockJson(block: BlockDefinition) {
       },
       components,
     },
+  };
+}
+
+export function generateItemJson(item: ItemDefinition) {
+  const components: Record<string, unknown> = {
+    'minecraft:icon': {
+      texture: item.texture,
+    },
+    'minecraft:display_name': {
+      value: item.name,
+    },
+    'minecraft:max_stack_size': item.maxStackSize,
+  };
+
+  if (item.glint) components['minecraft:glint'] = true;
+  if (item.handEquipped) components['minecraft:hand_equipped'] = true;
+  if (item.fireResistant) components['minecraft:fire_resistant'] = true;
+
+  return {
+    format_version: ITEM_FORMAT_VERSION,
+    'minecraft:item': {
+      description: {
+        identifier: item.identifier,
+        menu_category: {
+          category: item.category,
+        },
+      },
+      components,
+    },
+  };
+}
+
+export function generateItemTextureAtlas(project: Project) {
+  const textureData: Record<string, { textures: string }> = {};
+  for (const texture of project.textures.filter((entry) => entry.kind === 'item')) {
+    textureData[texture.key] = {
+      textures: `textures/items/${normalizePathName(texture.fileName)}`,
+    };
+  }
+
+  return {
+    resource_pack_name: `${project.name} RP`,
+    texture_name: 'atlas.items',
+    texture_data: textureData,
+  };
+}
+
+export function generateTerrainTextureAtlas(project: Project) {
+  const textureData: Record<string, { textures: string }> = {};
+  for (const texture of project.textures.filter((entry) => entry.kind === 'block')) {
+    textureData[texture.key] = {
+      textures: `textures/blocks/${normalizePathName(texture.fileName)}`,
+    };
+  }
+
+  return {
+    resource_pack_name: `${project.name} RP`,
+    texture_name: 'atlas.terrain',
+    padding: 8,
+    num_mip_levels: 4,
+    texture_data: textureData,
   };
 }
 
